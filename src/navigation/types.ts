@@ -18,7 +18,12 @@ export type RootStackParamList = {
   Welcome: undefined;
   MainTabs: undefined;
   Chats: undefined;
-  ChatRoom: { id?: string; recipientCode?: string; name: string };
+  ChatRoom: {
+    id?: string;
+    recipientCode?: string;
+    name: string;
+    avatar?: string | null;
+  };
   ContactList:
     | { forwardMessage?: { messageId: string; text: string; image?: string } }
     | undefined;
@@ -39,10 +44,15 @@ export type RootStackParamList = {
   Help: undefined;
   TermsPrivacy: undefined;
   AppInfo: undefined;
-  VoiceCall: { userId: string; userName: string };
-  VideoCall: { userId: string; userName: string };
+  VoiceCall: { userId: string; userName: string; isIncoming?: boolean };
+  VideoCall: { userId: string; userName: string; isIncoming?: boolean };
   SetupPIN: { isOnboarding: boolean; email?: string };
   VerifyPIN: { email?: string };
   Logout: undefined;
-  FriendProfile: { id: string; name: string; userCode?: string };
+  FriendProfile: {
+    id: string;
+    name: string;
+    userCode?: string;
+    avatar?: string | null;
+  };
 };

@@ -16,6 +16,12 @@ export interface Story {
     type: string;
     expiresAt: string;
     createdAt: string;
+    viewers?: {
+        id: number;
+        displayName: string;
+        avatar: string;
+        viewedAt: string;
+    }[];
 }
 
 export interface UserStatus {

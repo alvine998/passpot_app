@@ -14,20 +14,39 @@ type VideoCallRouteProp = RouteProp<RootStackParamList, 'VideoCall'>;
 const VideoCallScreen = () => {
     const navigation = useNavigation<any>();
     const route = useRoute<VideoCallRouteProp>();
-    const { userName } = route.params;
+    const { userName, userId, isIncoming } = route.params;
 
     const [isMuted, setIsMuted] = useState(false);
     const [isCameraOff, setIsCameraOff] = useState(false);
     const [seconds, setSeconds] = useState(0);
     const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+    const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
 
     useEffect(() => {
-        let stream: MediaStream | null = null;
-        const startStream = async () => {
-            stream = await WebRTCService.getLocalStream();
+        const startCall = async () => {
+            // Get local stream
+            let stream = WebRTCService.localStream;
+            if (!stream) {
+                stream = await WebRTCService.getLocalStream(false);
+            }
             setLocalStream(stream);
+
+            // Start call only if not incoming
+            if (userId && !isIncoming) {
+                await WebRTCService.startCall(parseInt(userId), false);
+            }
         };
-        startStream();
+        startCall();
+
+        // Listeners implementation
+        WebRTCService.onRemoteStream = (rStream) => {
+            console.log('Setting remote stream in UI');
+            setRemoteStream(rStream);
+        };
+
+        WebRTCService.onCallEnded = () => {
+            navigation.goBack();
+        };
 
         const timer = setInterval(() => {
             setSeconds(prev => prev + 1);
@@ -35,9 +54,11 @@ const VideoCallScreen = () => {
 
         return () => {
             clearInterval(timer);
-            WebRTCService.stopStream(stream);
+            WebRTCService.onCallEnded = null;
+            WebRTCService.onRemoteStream = null;
+            // Service cleans up streams on endCall
         };
-    }, []);
+    }, [userId]);
 
     const toggleMute = () => {
         const newMuted = !isMuted;
@@ -56,7 +77,7 @@ const VideoCallScreen = () => {
     };
 
     const handleEndCall = () => {
-        WebRTCService.stopStream(localStream);
+        WebRTCService.endCall();
         navigation.goBack();
     };
 
@@ -70,11 +91,19 @@ const VideoCallScreen = () => {
         <View style={styles.container}>
             {/* Main Video Area (Remote) */}
             <View style={styles.remoteVideo}>
-                <View style={styles.remoteAvatar}>
-                    <User size={100} color={COLORS.white} />
-                    <Text style={styles.remoteName}>{userName}</Text>
-                    <Text style={styles.timer}>{formatTime(seconds)}</Text>
-                </View>
+                {remoteStream ? (
+                    <RTCView
+                        streamURL={remoteStream.toURL()}
+                        style={StyleSheet.absoluteFill}
+                        objectFit="cover"
+                    />
+                ) : (
+                    <View style={styles.remoteAvatar}>
+                        <User size={100} color={COLORS.white} />
+                        <Text style={styles.remoteName}>{userName}</Text>
+                        <Text style={styles.timer}>{formatTime(seconds)}</Text>
+                    </View>
+                )}
             </View>
 
             {/* Local Video Area (Self) */}

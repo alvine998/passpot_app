@@ -156,6 +156,92 @@ class SocketService {
     }
   }
 
+  // WebRTC Signaling Methods
+
+  callUser(to: number, offer: any, type: 'audio' | 'video'): void {
+    if (this.socket?.connected) {
+      console.log('Calling user:', to, type);
+      this.socket.emit('call-user', { to, offer, type });
+    }
+  }
+
+  makeAnswer(to: number, answer: any): void {
+    if (this.socket?.connected) {
+      console.log('Sending answer to:', to);
+      this.socket.emit('make-answer', { to, answer });
+    }
+  }
+
+  sendIceCandidate(to: number, candidate: any): void {
+    if (this.socket?.connected) {
+      console.log('Sending ICE candidate to:', to);
+      this.socket.emit('ice-candidate', { to, candidate });
+    }
+  }
+
+  rejectCall(to: number): void {
+    if (this.socket?.connected) {
+      console.log('Rejecting call from:', to);
+      this.socket.emit('reject-call', { to });
+    }
+  }
+
+  endCall(to: number): void {
+    if (this.socket?.connected) {
+      console.log('Ending call with:', to);
+      this.socket.emit('end-call', { to });
+    }
+  }
+
+  // Register callbacks for WebRTC events
+  onIncomingCall(callback: (data: any) => void): void {
+    this.socket?.on('call-made', callback);
+  }
+
+  onCallAnswered(callback: (data: any) => void): void {
+    this.socket?.on('answer-made', callback);
+  }
+
+  onIceCandidate(callback: (data: any) => void): void {
+    this.socket?.on('ice-candidate', callback);
+  }
+
+  onCallRejected(callback: (data: any) => void): void {
+    this.socket?.on('call-rejected', callback);
+  }
+
+  onCallEnded(callback: (data: any) => void): void {
+    this.socket?.on('end-call', callback); // Note: server might use 'call-ended' or 'end-call'
+    this.socket?.on('call-ended', callback);
+  }
+
+  // User Status Events
+  onUserOnline(callback: (data: { userId: number }) => void): void {
+    this.socket?.on('user-online', callback);
+  }
+
+  onUserOffline(callback: (data: { userId: number }) => void): void {
+    this.socket?.on('user-offline', callback);
+  }
+
+  offStatusEvents(): void {
+    if (this.socket) {
+      this.socket.off('user-online');
+      this.socket.off('user-offline');
+    }
+  }
+
+  offSignalingEvents(): void {
+    if (this.socket) {
+      this.socket.off('call-made');
+      this.socket.off('answer-made');
+      this.socket.off('ice-candidate');
+      this.socket.off('call-rejected');
+      this.socket.off('end-call');
+      this.socket.off('call-ended');
+    }
+  }
+
   sendTyping(conversationId: string): void {
     if (this.socket?.connected) {
       this.socket.emit('typing', { conversationId });

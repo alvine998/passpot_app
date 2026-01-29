@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { COLORS, SPACING } from '../styles/theme';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -12,11 +12,13 @@ import { format } from 'date-fns';
 
 interface ChatItemProps {
     conversation: Conversation;
+    isLocked?: boolean;
+    onUnlockRequest?: () => void;
 }
 
 type ChatItemNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-const ChatItem = React.memo(({ conversation }: ChatItemProps) => {
+const ChatItem = React.memo(({ conversation, isLocked = false, onUnlockRequest }: ChatItemProps) => {
     const navigation = useNavigation<ChatItemNavigationProp>();
     const { id: currentUserId } = useProfile();
 
@@ -28,26 +30,54 @@ const ChatItem = React.memo(({ conversation }: ChatItemProps) => {
         : format(new Date(conversation.updatedAt), 'HH:mm');
 
     const isEncrypted = lastMessageContent.startsWith('ENC[');
-    const displayPreview = isEncrypted
-        ? '••••••••••••••••'
-        : lastMessageContent.substring(0, 30);
+
+    // Check if content is an image URL
+    const isImage = lastMessageContent.match(/\.(jpeg|jpg|gif|png|webp)$/i) != null ||
+        lastMessageContent.includes('.r2.dev');
+
+    const displayPreview = isLocked
+        ? '••••••••'
+        : (isEncrypted
+            ? '••••••••••••••••'
+            : (isImage ? '📷 Image' : lastMessageContent.substring(0, 30)));
+
+    const handlePress = () => {
+        if (isLocked) {
+            onUnlockRequest?.();
+        } else {
+            navigation.navigate('ChatRoom', {
+                id: conversation.id.toString(),
+                name,
+                recipientCode: otherUser?.userCode,
+                avatar: otherUser?.avatar
+            });
+        }
+    };
 
     return (
         <TouchableOpacity
             style={styles.container}
-            onPress={() => navigation.navigate('ChatRoom', { id: conversation.id.toString(), name })}
+            onPress={handlePress}
             activeOpacity={0.7}
         >
             <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{name.charAt(0)}</Text>
+                {isLocked ? (
+                    <Lock size={24} color={COLORS.white} />
+                ) : (
+                    otherUser?.avatar ? (
+                        <Image source={{ uri: otherUser.avatar }} style={styles.avatarImage} />
+                    ) : (
+                        <Text style={styles.avatarText}>{name.charAt(0)}</Text>
+                    )
+                )}
             </View>
             <View style={styles.content}>
                 <View style={styles.header}>
-                    <Text style={styles.name}>{name}</Text>
+                    <Text style={styles.name}>{isLocked ? '*****' : name}</Text>
                     <Text style={styles.time}>{time}</Text>
                 </View>
                 <View style={styles.footer}>
-                    {isEncrypted && <Lock size={12} color={COLORS.darkGray} style={{ marginRight: 4 }} />}
+                    {(isEncrypted || isLocked) && <Lock size={12} color={COLORS.darkGray} style={{ marginRight: 4 }} />}
                     <Text style={styles.lastMessage} numberOfLines={1}>
                         {displayPreview}
                     </Text>
@@ -71,6 +101,11 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.black,
         justifyContent: 'center',
         alignItems: 'center',
+        overflow: 'hidden',
+    },
+    avatarImage: {
+        width: '100%',
+        height: '100%',
     },
     avatarText: {
         color: COLORS.white,

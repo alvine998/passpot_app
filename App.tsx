@@ -194,6 +194,8 @@ function AppNavigator() {
 
 import Toast from 'react-native-toast-message';
 
+import IncomingCallListener from './src/components/IncomingCallListener';
+
 function App() {
   return (
     <I18nextProvider i18n={i18n}>
@@ -206,6 +208,7 @@ function App() {
                   <NavigationContainer ref={navigationRef}>
                     <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent={true} />
                     <AppNavigator />
+                    <IncomingCallListener />
                     <Toast />
                   </NavigationContainer>
                 </SafeAreaProvider>

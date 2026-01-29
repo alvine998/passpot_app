@@ -8,6 +8,8 @@ import { ArrowLeft, MessageSquare, Phone, Video, MoreVertical, User, MapPin, Inf
 import { useTranslation } from 'react-i18next';
 import normalize from 'react-native-normalize';
 
+import { useFriends } from '../context/FriendsContext';
+
 type FriendProfileRouteProp = RouteProp<RootStackParamList, 'FriendProfile'>;
 type FriendProfileNavigationProp = NativeStackNavigationProp<RootStackParamList, 'FriendProfile'>;
 
@@ -15,7 +17,21 @@ const FriendProfileScreen = () => {
     const route = useRoute<FriendProfileRouteProp>();
     const navigation = useNavigation<FriendProfileNavigationProp>();
     const { t } = useTranslation();
-    const { name, id } = route.params;
+    const { name, id, avatar } = route.params;
+    const { friends, addFriend, isLoading, fetchFriends } = useFriends();
+    const isFriend = React.useMemo(() => friends.some(f => f.id.toString() === id), [friends, id]);
+
+    React.useEffect(() => {
+        fetchFriends(); // Ensure friends list is up to date
+    }, []);
+
+    const handleAddFriend = async () => {
+        if (!route.params.userCode) {
+            console.error('User code not available');
+            return;
+        }
+        await addFriend(route.params.userCode);
+    };
 
     const ProfileAction = ({ icon: Icon, label, onPress, color = COLORS.black }: any) => (
         <TouchableOpacity style={styles.actionButton} onPress={onPress} activeOpacity={0.7}>
@@ -52,10 +68,26 @@ const FriendProfileScreen = () => {
             <ScrollView style={styles.content}>
                 <View style={styles.profileHero}>
                     <View style={styles.avatar}>
-                        <User size={60} color={COLORS.white} />
+                        {avatar ? (
+                            <Image source={{ uri: avatar }} style={styles.avatarImage} />
+                        ) : (
+                            <User size={60} color={COLORS.white} />
+                        )}
                     </View>
                     <Text style={styles.name}>{name}</Text>
-                    <Text style={styles.status}>{t('chat.online')}</Text>
+                    <Text style={styles.status}>{isFriend ? t('chat.online') : t('common.notConnected')}</Text>
+
+                    {!isFriend && (
+                        <TouchableOpacity
+                            style={styles.addFriendButton}
+                            onPress={handleAddFriend}
+                            disabled={isLoading}
+                        >
+                            <Text style={styles.addFriendButtonText}>
+                                {isLoading ? t('common.loading') : t('chat.addFriend')}
+                            </Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
 
                 <View style={styles.actionsRow}>
@@ -144,6 +176,11 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.2,
         shadowRadius: 8,
         elevation: 5,
+        overflow: 'hidden',
+    },
+    avatarImage: {
+        width: '100%',
+        height: '100%',
     },
     name: {
         fontSize: 24,
@@ -154,6 +191,17 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: '#34C759',
         marginTop: 4,
+        fontWeight: '600',
+    },
+    addFriendButton: {
+        marginTop: SPACING.md,
+        backgroundColor: COLORS.black,
+        paddingHorizontal: SPACING.xl,
+        paddingVertical: SPACING.sm,
+        borderRadius: 20,
+    },
+    addFriendButtonText: {
+        color: COLORS.white,
         fontWeight: '600',
     },
     actionsRow: {

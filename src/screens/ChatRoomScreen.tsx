@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { View, StyleSheet, FlatList, Text, TouchableOpacity, Platform, KeyboardAvoidingView, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, FlatList, Text, TouchableOpacity, Platform, KeyboardAvoidingView, ActivityIndicator, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRoute, useNavigation, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -33,10 +33,11 @@ const ChatRoomScreen = () => {
     const navigation = useNavigation<ChatRoomNavigationProp>();
     const { t } = useTranslation();
     const insets = useSafeAreaInsets();
-    const { id: initialId, recipientCode, name } = route.params;
+    const { id: initialId, recipientCode, name, avatar } = route.params;
     const { fetchMessages, sendMessage, conversations } = useChat();
     const { id: profileId } = useProfile();
     const chatName = name || 'Chat';
+    const [chatAvatar, setChatAvatar] = useState(avatar);
 
     const [conversationId, setConversationId] = useState<string | undefined>(initialId);
     const [messages, setMessages] = useState<Message[]>([]);
@@ -101,10 +102,14 @@ const ChatRoomScreen = () => {
                 const exists = prev.some(m => m.id === newMsg.id?.toString());
                 if (exists) return prev;
 
+                const isImageContent = newMsg.content &&
+                    (newMsg.content.match(/\.(jpeg|jpg|gif|png|webp)$/i) != null ||
+                        newMsg.content.includes('.r2.dev'));
+
                 const message: Message = {
                     id: newMsg.id?.toString() || Date.now().toString(),
-                    text: newMsg.content,
-                    image: newMsg.fileUrl,
+                    text: isImageContent ? '' : newMsg.content,
+                    image: newMsg.fileUrl || (isImageContent ? newMsg.content : undefined),
                     time: format(new Date(newMsg.createdAt || new Date()), 'hh:mm a'),
                     isMe: false, // Messages from socket are always from others now
                     isSecret: false,
@@ -121,10 +126,12 @@ const ChatRoomScreen = () => {
                         console.error('Failed to decrypt incoming message');
                     });
                 } else if (newMsg.content) {
-                    setDecryptedMap(prev => ({
-                        ...prev,
-                        [message.id]: newMsg.content,
-                    }));
+                    if (!isImageContent) {
+                        setDecryptedMap(prev => ({
+                            ...prev,
+                            [message.id]: newMsg.content,
+                        }));
+                    }
                 }
 
                 setTimeout(() => {
@@ -149,14 +156,20 @@ const ChatRoomScreen = () => {
         setIsLoading(true);
         try {
             const fetchedMessages = await fetchMessages(String(conversationId));
-            const mappedMessages: Message[] = fetchedMessages.map(msg => ({
-                id: msg.id.toString(),
-                text: msg.content,
-                image: msg.fileUrl,
-                time: format(new Date(msg.createdAt), 'hh:mm a'),
-                isMe: msg.senderId === profileId,
-                isSecret: false,
-            }));
+            const mappedMessages: Message[] = fetchedMessages.map(msg => {
+                const isImageContent = msg.content &&
+                    (msg.content.match(/\.(jpeg|jpg|gif|png|webp)$/i) != null ||
+                        msg.content.includes('.r2.dev'));
+
+                return {
+                    id: msg.id.toString(),
+                    text: isImageContent ? '' : msg.content,
+                    image: msg.fileUrl || (isImageContent ? msg.content : undefined),
+                    time: format(new Date(msg.createdAt), 'hh:mm a'),
+                    isMe: msg.senderId === profileId,
+                    isSecret: false,
+                };
+            });
 
             setMessages(mappedMessages);
 
@@ -171,7 +184,14 @@ const ChatRoomScreen = () => {
                         console.error('Decryption failed for msg', msg.id);
                     }
                 } else if (msg.content) {
-                    newDecryptedMap[msg.id.toString()] = msg.content;
+                    // Check if it is an image before adding to decrypted map
+                    const isImage = msg.content &&
+                        (msg.content.match(/\.(jpeg|jpg|gif|png|webp)$/i) != null ||
+                            msg.content.includes('.r2.dev'));
+
+                    if (!isImage) {
+                        newDecryptedMap[msg.id.toString()] = msg.content;
+                    }
                 }
             }
             setDecryptedMap(newDecryptedMap);
@@ -329,11 +349,15 @@ const ChatRoomScreen = () => {
                     </TouchableOpacity>
                     <TouchableOpacity
                         style={styles.profileInfo}
-                        onPress={() => navigation.navigate('FriendProfile', { id: initialId || '', name: chatName, userCode: recipientCode })}
+                        onPress={() => navigation.navigate('FriendProfile', { id: initialId || '', name: chatName, userCode: recipientCode, avatar: chatAvatar })}
                         activeOpacity={0.7}
                     >
                         <View style={styles.avatar}>
-                            <Text style={styles.avatarText}>{chatName.charAt(0)}</Text>
+                            {chatAvatar ? (
+                                <Image source={{ uri: chatAvatar }} style={styles.avatarImage} />
+                            ) : (
+                                <Text style={styles.avatarText}>{chatName.charAt(0)}</Text>
+                            )}
                         </View>
                         <View style={styles.headerTitle}>
                             <Text style={styles.nameText}>{chatName}</Text>
@@ -429,6 +453,11 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: SPACING.sm,
+        overflow: 'hidden',
+    },
+    avatarImage: {
+        width: '100%',
+        height: '100%',
     },
     avatarText: {
         color: COLORS.white,

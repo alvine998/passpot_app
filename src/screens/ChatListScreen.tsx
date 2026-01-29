@@ -89,8 +89,12 @@ const ChatListScreen = () => {
     }, [isSearching, searchQuery, t]);
 
     const renderItem = React.useCallback(({ item }: any) => (
-        <ChatItem conversation={item} />
-    ), []);
+        <ChatItem
+            conversation={item}
+            isLocked={!isUnlocked}
+            onUnlockRequest={() => setShowSecurity(true)}
+        />
+    ), [isUnlocked]);
 
     return (
         <View style={styles.container}>
@@ -138,7 +142,7 @@ const ChatListScreen = () => {
                     setUnlocked(true);
                     setShowSecurity(false);
                 }}
-                onCancel={() => BackHandler.exitApp()}
+                onCancel={() => setShowSecurity(false)}
             />
         </View>
     );

@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, ScrollView, Alert, ActivityIndicator, Linking } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
@@ -26,12 +26,32 @@ const Verify2FAScreen = () => {
     const handleOtpChange = (value: string, index: number) => {
         if (isLoading) return;
 
+        if (value.length > 1) {
+            const pastedData = value.split('');
+            const newOtp = [...otp];
+            let lastIndex = index;
+
+            for (let i = 0; i < pastedData.length; i++) {
+                if (index + i < 6) {
+                    newOtp[index + i] = pastedData[i];
+                    lastIndex = index + i;
+                }
+            }
+            setOtp(newOtp);
+            if (lastIndex < 5) {
+                inputRefs.current[lastIndex + 1]?.focus();
+            } else {
+                inputRefs.current[5]?.blur();
+            }
+            return;
+        }
+
         const newOtp = [...otp];
         newOtp[index] = value;
         setOtp(newOtp);
 
         // Auto focus next input
-        if (value.length !== 0 && index < 5) {
+        if (value !== '' && index < 5) {
             inputRefs.current[index + 1]?.focus();
         }
     };
@@ -140,7 +160,7 @@ const Verify2FAScreen = () => {
                                 onChangeText={(value) => handleOtpChange(value, index)}
                                 onKeyPress={(e) => handleKeyPress(e, index)}
                                 keyboardType="number-pad"
-                                maxLength={1}
+                                maxLength={index === 0 ? 6 : 1}
                                 selectTextOnFocus
                                 editable={!isLoading}
                             />
@@ -148,6 +168,26 @@ const Verify2FAScreen = () => {
                     </View>
 
                     {/* <Text style={styles.secretHint}>{t('verify2FA.secret')}: {secret}</Text> */}
+
+                    <TouchableOpacity
+                        style={styles.openAuthButton}
+                        onPress={() => {
+                            // Try generic launch, or inform user
+                            const url = 'otpauth://';
+                            Linking.canOpenURL(url).then(supported => {
+                                if (supported) {
+                                    return Linking.openURL(url);
+                                } else {
+                                    // Fallback to searching store or just alert
+                                    Alert.alert(t('common.info'), t('verify2FA.openManually', 'Please open your Authenticator app manually.'));
+                                }
+                            }).catch(() => {
+                                Alert.alert(t('common.info'), t('verify2FA.openManually', 'Please open your Authenticator app manually.'));
+                            });
+                        }}
+                    >
+                        <Text style={styles.openAuthButtonText}>{t('setup2FA.openApp', 'Open Authenticator App')}</Text>
+                    </TouchableOpacity>
 
                     <View style={styles.flexSpacer} />
 
@@ -272,6 +312,16 @@ const styles = StyleSheet.create({
     },
     cancelButtonText: {
         color: COLORS.darkGray,
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    openAuthButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: SPACING.xl,
+    },
+    openAuthButtonText: {
+        color: COLORS.black,
         fontSize: 14,
         fontWeight: '600',
     },

@@ -12,7 +12,7 @@ type VoiceCallRouteProp = RouteProp<RootStackParamList, 'VoiceCall'>;
 const VoiceCallScreen = () => {
     const navigation = useNavigation();
     const route = useRoute<VoiceCallRouteProp>();
-    const { userName } = route.params;
+    const { userName, userId, isIncoming } = route.params;
 
     const [isMuted, setIsMuted] = useState(false);
     const [isSpeaker, setIsSpeaker] = useState(false);
@@ -20,12 +20,25 @@ const VoiceCallScreen = () => {
     const [localStream, setLocalStream] = useState<MediaStream | null>(null);
 
     useEffect(() => {
-        let stream: MediaStream | null = null;
-        const startStream = async () => {
-            stream = await WebRTCService.getLocalStream(true);
+        const startCall = async () => {
+            // Get local stream from service if available, or request it
+            let stream = WebRTCService.localStream;
+            if (!stream) {
+                stream = await WebRTCService.getLocalStream(true);
+            }
             setLocalStream(stream);
+
+            // Start the actual call only if not incoming
+            if (userId && !isIncoming) {
+                await WebRTCService.startCall(parseInt(userId), true);
+            }
         };
-        startStream();
+        startCall();
+
+        // Listen for call ended
+        WebRTCService.onCallEnded = () => {
+            navigation.goBack();
+        };
 
         const timer = setInterval(() => {
             setSeconds(prev => prev + 1);
@@ -33,9 +46,10 @@ const VoiceCallScreen = () => {
 
         return () => {
             clearInterval(timer);
-            WebRTCService.stopStream(stream);
+            WebRTCService.onCallEnded = null;
+            // The service handles stream cleanup on endCall
         };
-    }, []);
+    }, [userId]);
 
     const toggleMute = () => {
         const newMuted = !isMuted;
@@ -44,7 +58,7 @@ const VoiceCallScreen = () => {
     };
 
     const handleEndCall = () => {
-        WebRTCService.stopStream(localStream);
+        WebRTCService.endCall();
         navigation.goBack();
     };
 

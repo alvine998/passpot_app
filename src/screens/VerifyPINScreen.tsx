@@ -29,14 +29,30 @@ const VerifyPINScreen = () => {
         if (isLoading) return;
 
         if (value.length > 1) {
-            value = value.charAt(value.length - 1);
+            const pastedData = value.split('');
+            const newPin = [...pin];
+            let lastIndex = index;
+
+            for (let i = 0; i < pastedData.length; i++) {
+                if (index + i < 6) {
+                    newPin[index + i] = pastedData[i];
+                    lastIndex = index + i;
+                }
+            }
+            setPin(newPin);
+            if (lastIndex < 5) {
+                inputRefs.current[lastIndex + 1]?.focus();
+            } else {
+                inputRefs.current[5]?.blur();
+            }
+            return;
         }
 
         const newPin = [...pin];
         newPin[index] = value;
         setPin(newPin);
 
-        if (value.length !== 0 && index < 5) {
+        if (value !== '' && index < 5) {
             inputRefs.current[index + 1]?.focus();
         }
     };
@@ -129,7 +145,7 @@ const VerifyPINScreen = () => {
                                 onChangeText={(value) => handlePinChange(value, index)}
                                 onKeyPress={(e) => handleKeyPress(e, index)}
                                 keyboardType="number-pad"
-                                maxLength={1}
+                                maxLength={index === 0 ? 6 : 1}
                                 secureTextEntry={true}
                                 selectTextOnFocus
                                 editable={!isLoading}

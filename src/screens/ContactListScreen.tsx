@@ -14,10 +14,11 @@ import {
     ActivityIndicator,
     RefreshControl
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { COLORS, SPACING } from '../styles/theme';
-import { MessageSquarePlus, ArrowLeft, Shield, UserPlus, Search, Trash2 } from 'lucide-react-native';
+import { MessageSquarePlus, ArrowLeft, Shield, UserPlus, Search, Trash2, Check, X } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useFriends, Friend } from '../context/FriendsContext';
 import Toast from 'react-native-toast-message';
@@ -31,7 +32,12 @@ const ContactItem = React.memo(({ item, onPress, onLongPress }: { item: Friend; 
         onLongPress={onLongPress}
         activeOpacity={0.7}
     >
-        <Image source={{ uri: item.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=200' }} style={styles.avatar} />
+        <View>
+            <Image source={{ uri: item.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=200' }} style={styles.avatar} />
+            {item.isOnline && (
+                <View style={styles.onlineIndicator} />
+            )}
+        </View>
         <View style={styles.contactInfo}>
             <Text style={styles.name}>{item.displayName}</Text>
             <Text style={styles.status} numberOfLines={1}>{item.userCode}</Text>
@@ -39,9 +45,27 @@ const ContactItem = React.memo(({ item, onPress, onLongPress }: { item: Friend; 
     </TouchableOpacity>
 ));
 
+const RequestItem = React.memo(({ item, onAccept, onReject }: { item: Friend; onAccept: () => void; onReject: () => void }) => (
+    <View style={styles.requestItem}>
+        <Image source={{ uri: item.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=200' }} style={styles.avatar} />
+        <View style={styles.contactInfo}>
+            <Text style={styles.name}>{item.displayName}</Text>
+            <Text style={styles.status} numberOfLines={1}>{item.userCode}</Text>
+        </View>
+        <View style={styles.requestActions}>
+            <TouchableOpacity onPress={onAccept} style={[styles.actionButton, styles.acceptButton]}>
+                <Check size={20} color={COLORS.white} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={onReject} style={[styles.actionButton, styles.rejectButton]}>
+                <X size={20} color={COLORS.white} />
+            </TouchableOpacity>
+        </View>
+    </View>
+));
+
 const ContactListScreen = ({ navigation }: Props) => {
     const { t } = useTranslation();
-    const { friends, isLoading, error, fetchFriends, addFriend, removeFriend } = useFriends();
+    const { friends, friendRequests, isLoading, error, fetchFriends, fetchFriendRequests, addFriend, removeFriend, acceptFriendRequest, rejectFriendRequest } = useFriends();
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearching, setIsSearching] = useState(false);
     const [showPinModal, setShowPinModal] = useState(false);
@@ -52,9 +76,12 @@ const ContactListScreen = ({ navigation }: Props) => {
     const [showRemoveModal, setShowRemoveModal] = useState(false);
     const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
 
-    useEffect(() => {
-        fetchFriends();
-    }, [fetchFriends]);
+    useFocusEffect(
+        useCallback(() => {
+            fetchFriends();
+            fetchFriendRequests(); // Fetch pending requests
+        }, [fetchFriends, fetchFriendRequests])
+    );
 
     const filteredContacts = useMemo(() =>
         friends.filter(contact =>
@@ -145,6 +172,26 @@ const ContactListScreen = ({ navigation }: Props) => {
         </View>
     ), [handleContactPress, handleRemoveFriend]);
 
+
+
+    const handleAcceptRequest = async (senderId: number) => {
+        const success = await acceptFriendRequest(senderId);
+        if (success) {
+            Toast.show({ type: 'success', text1: 'Friend request accepted' });
+        } else {
+            Toast.show({ type: 'error', text1: 'Failed to accept request' });
+        }
+    };
+
+    const handleRejectRequest = async (senderId: number) => {
+        const success = await rejectFriendRequest(senderId);
+        if (success) {
+            Toast.show({ type: 'success', text1: 'Friend request rejected' });
+        } else {
+            Toast.show({ type: 'error', text1: 'Failed to reject request' });
+        }
+    };
+
     const ListHeader = useCallback(() => (
         <View>
             <TouchableOpacity style={styles.actionItem} onPress={() => setShowPinModal(true)}>
@@ -153,9 +200,25 @@ const ContactListScreen = ({ navigation }: Props) => {
                 </View>
                 <Text style={styles.actionText}>{t('profile.inviteByPin')}</Text>
             </TouchableOpacity>
+
+            {/* Friend Requests Section */}
+            {friendRequests.length > 0 && (
+                <View>
+                    <Text style={styles.sectionHeaderTitle}>Permintaan Pertemanan</Text>
+                    {friendRequests.map(req => (
+                        <RequestItem
+                            key={req.id}
+                            item={req}
+                            onAccept={() => handleAcceptRequest(req.id)}
+                            onReject={() => handleRejectRequest(req.id)}
+                        />
+                    ))}
+                </View>
+            )}
+
             <Text style={styles.sectionHeaderTitle}>Kontak di Passpot</Text>
         </View>
-    ), [t]);
+    ), [t, friendRequests]);
 
     return (
         <SafeAreaView style={styles.container}>
@@ -512,6 +575,43 @@ const styles = StyleSheet.create({
         color: COLORS.white,
         fontSize: 12,
         fontWeight: '600',
+    },
+
+    requestItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        backgroundColor: '#F0F0F0', // Slightly different bg to distinguish requests
+        marginBottom: 1,
+    },
+    requestActions: {
+        flexDirection: 'row',
+        gap: 8,
+    },
+    actionButton: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    acceptButton: {
+        backgroundColor: COLORS.success,
+    },
+    rejectButton: {
+        backgroundColor: COLORS.danger,
+    },
+    onlineIndicator: {
+        position: 'absolute',
+        bottom: 2,
+        right: 18, // Adjust based on avatar margin
+        width: 14,
+        height: 14,
+        borderRadius: 7,
+        backgroundColor: '#4CAF50', // Green
+        borderWidth: 2,
+        borderColor: COLORS.white,
     },
 });
 

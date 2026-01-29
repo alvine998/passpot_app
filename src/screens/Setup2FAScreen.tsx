@@ -6,7 +6,7 @@ import { RootStackParamList } from '../navigation/types';
 import { COLORS, SPACING } from '../styles/theme';
 import { ArrowLeft, Copy, Shield, Info } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
-import { Clipboard } from 'react-native';
+import { Clipboard, Linking } from 'react-native';
 import { api } from '../services/ApiService';
 
 import QRCode from 'react-native-qrcode-svg';
@@ -167,6 +167,23 @@ const Setup2FAScreen = () => {
                     </View>
                 </View>
 
+                <TouchableOpacity
+                    style={styles.openAuthButton}
+                    onPress={() => {
+                        if (otpauthUrl) {
+                            Linking.openURL(otpauthUrl).catch(err => {
+                                console.error('Failed to open URL:', err);
+                                Alert.alert(t('common.error'), t('setup2FA.openAuthError', 'Could not open Authenticator app'));
+                            });
+                        }
+                    }}
+                >
+                    <Shield size={20} color={COLORS.black} style={{ marginRight: 8 }} />
+                    <Text style={styles.openAuthButtonText}>{t('setup2FA.openApp', 'Open Authenticator App')}</Text>
+                </TouchableOpacity>
+
+
+
                 <View style={[styles.stepContainer, { marginTop: SPACING.xl }]}>
                     <View style={styles.stepNumber}>
                         <Text style={styles.stepNumberText}>2</Text>
@@ -197,8 +214,8 @@ const Setup2FAScreen = () => {
                 >
                     <Text style={styles.nextButtonText}>{t('setup2FA.next')}</Text>
                 </TouchableOpacity>
-            </ScrollView>
-        </View>
+            </ScrollView >
+        </View >
     );
 };
 
@@ -362,6 +379,16 @@ const styles = StyleSheet.create({
         color: COLORS.white,
         fontSize: 16,
         fontWeight: '700',
+    },
+    openAuthButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: SPACING.xl,
+    },
+    openAuthButtonText: {
+        color: COLORS.black,
+        fontSize: 14,
+        fontWeight: '600',
     },
 });
 

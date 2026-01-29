@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { View, TextInput, StyleSheet, TouchableOpacity, Image, Text } from 'react-native';
+import { View, TextInput, StyleSheet, TouchableOpacity, Image, Text, Platform } from 'react-native';
 import { COLORS, SPACING } from '../styles/theme';
 import { Send, Plus, Paperclip, X, Shield, ShieldCheck } from 'lucide-react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
+import normalize from 'react-native-normalize';
 
 interface MessageInputProps {
     onSend: (text: string) => void;
@@ -169,16 +170,16 @@ const styles = StyleSheet.create({
         marginHorizontal: SPACING.sm,
         paddingHorizontal: SPACING.md,
         alignItems: 'center',
-        minHeight: 45,
-        maxHeight: 120,
+        minHeight: normalize(45),
+        maxHeight: normalize(120),
     },
     input: {
         flex: 1,
         color: '#000000',
-        fontSize: 16,
-        paddingVertical: SPACING.sm,
+        fontSize: normalize(16),
+        paddingVertical: Platform.OS === 'ios' ? normalize(10) : normalize(8),
         paddingHorizontal: 0,
-        minHeight: 40,
+        minHeight: normalize(40),
         textAlignVertical: 'center',
     },
     iconButton: {
