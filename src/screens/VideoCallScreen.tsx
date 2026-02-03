@@ -34,6 +34,7 @@ const VideoCallScreen = () => {
         callStartTime.current = new Date();
 
         const startCall = async () => {
+            console.log('[VideoCall] startCall triggered. userId:', userId, 'isIncoming:', isIncoming, 'currentUserId:', currentUserId);
             // Get local stream
             let stream = WebRTCService.localStream;
             if (!stream) {
@@ -43,7 +44,7 @@ const VideoCallScreen = () => {
 
             // Start call only if not incoming
             if (userId && !isIncoming) {
-                await WebRTCService.startCall(parseInt(userId), false);
+                await WebRTCService.startCall(userId, false);
             } else if (isIncoming) {
                 // Incoming call is already connected
                 setCallState('connected');
@@ -112,7 +113,10 @@ const VideoCallScreen = () => {
     };
 
     const logCallEnd = async (status: 'completed' | 'missed' | 'rejected' | 'busy') => {
-        if (!currentUserId || !userId) return;
+        if (!currentUserId || !userId) {
+            console.warn('[VideoCall] Missing IDs for logging:', { currentUserId, userId });
+            return;
+        }
 
         const endTime = new Date();
         const startTime = callStartTime.current || endTime;
@@ -124,9 +128,23 @@ const VideoCallScreen = () => {
             duration = Math.floor((endTime.getTime() - connectedTime.getTime()) / 1000);
         }
 
+        // Send IDs as strings directly (matching CallLogPayload UUID migration)
+        const callerId = isIncoming ? userId : (currentUserId ? currentUserId.toString() : '');
+        const receiverId = isIncoming ? (currentUserId ? currentUserId.toString() : '') : userId;
+
+        if (!callerId || !receiverId) {
+            console.warn('[VideoCall] Cannot log call: Missing IDs', {
+                userId,
+                currentUserId,
+                callerId,
+                receiverId
+            });
+            return;
+        }
+
         await CallService.logCall({
-            callerId: isIncoming ? parseInt(userId) : parseInt(currentUserId.toString()),
-            receiverId: isIncoming ? parseInt(currentUserId.toString()) : parseInt(userId),
+            callerId,
+            receiverId,
             callType: 'video',
             status,
             duration,

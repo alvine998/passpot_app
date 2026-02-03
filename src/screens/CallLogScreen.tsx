@@ -7,6 +7,7 @@ import { RootStackParamList } from '../navigation/types';
 import { COLORS, SPACING } from '../styles/theme';
 import { Phone, Video, PhoneIncoming, PhoneOutgoing, PhoneMissed, User, Search } from 'lucide-react-native';
 import Header from '../components/Header';
+import SecurityOverlay from '../components/SecurityOverlay';
 import { api } from '../services/ApiService';
 import { format, isToday, isYesterday } from 'date-fns';
 import { useTranslation } from 'react-i18next';
@@ -33,6 +34,7 @@ const CallLogScreen = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const [isLocked, setIsLocked] = useState(true);
 
     const fetchCallLogs = useCallback(async () => {
         try {
@@ -174,6 +176,14 @@ const CallLogScreen = () => {
     return (
         <View style={[styles.container, { paddingTop: insets.top }]}>
             <Header title={t('callLog.title')} showSearch={false} />
+
+            {/* Security Overlay */}
+            <SecurityOverlay
+                isVisible={isLocked}
+                onUnlock={() => setIsLocked(false)}
+                onCancel={() => navigation.goBack()}
+                title={t('callLog.title')}
+            />
 
             {/* Search Input */}
             <View style={styles.searchContainer}>

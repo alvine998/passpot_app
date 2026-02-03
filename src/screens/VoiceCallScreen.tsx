@@ -31,6 +31,7 @@ const VoiceCallScreen = () => {
         callStartTime.current = new Date();
 
         const startCall = async () => {
+            console.log('[VoiceCall] startCall triggered. userId:', userId, 'isIncoming:', isIncoming, 'currentUserId:', currentUserId);
             // Get local stream from service if available, or request it
             let stream = WebRTCService.localStream;
             if (!stream) {
@@ -40,7 +41,7 @@ const VoiceCallScreen = () => {
 
             // Start the actual call only if not incoming
             if (userId && !isIncoming) {
-                await WebRTCService.startCall(parseInt(userId), true);
+                await WebRTCService.startCall(userId, true);
             } else if (isIncoming) {
                 // Incoming call is already connected
                 setCallState('connected');
@@ -93,7 +94,10 @@ const VoiceCallScreen = () => {
     };
 
     const logCallEnd = async (status: 'completed' | 'missed' | 'rejected' | 'busy') => {
-        if (!currentUserId || !userId) return;
+        if (!currentUserId || !userId) {
+            console.warn('[VoiceCall] Missing IDs for logging:', { currentUserId, userId });
+            return;
+        }
 
         const endTime = new Date();
         const startTime = callStartTime.current || endTime;
@@ -105,9 +109,23 @@ const VoiceCallScreen = () => {
             duration = Math.floor((endTime.getTime() - connectedTime.getTime()) / 1000);
         }
 
+        // Send IDs as strings directly (matching CallLogPayload UUID migration)
+        const callerId = isIncoming ? userId : (currentUserId ? currentUserId.toString() : '');
+        const receiverId = isIncoming ? (currentUserId ? currentUserId.toString() : '') : userId;
+
+        if (!callerId || !receiverId) {
+            console.warn('[VoiceCall] Cannot log call: Missing IDs', {
+                userId,
+                currentUserId,
+                callerId,
+                receiverId
+            });
+            return;
+        }
+
         await CallService.logCall({
-            callerId: isIncoming ? parseInt(userId) : parseInt(currentUserId.toString()),
-            receiverId: isIncoming ? parseInt(currentUserId.toString()) : parseInt(userId),
+            callerId,
+            receiverId,
             callType: 'audio',
             status,
             duration,

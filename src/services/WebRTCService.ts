@@ -27,7 +27,7 @@ export class WebRTCService {
   static peerConnection: RTCPeerConnection | null = null;
   static localStream: MediaStream | null = null;
   static remoteStream: MediaStream | null = null;
-  static targetUserId: number | null = null; // ID of the user we are calling/connected to state
+  static targetUserId: string | number | null = null; // ID of the user we are calling/connected to state
 
   // Callbacks for UI updates
   static onRemoteStream: ((stream: MediaStream) => void) | null = null;
@@ -123,7 +123,7 @@ export class WebRTCService {
   }
 
   static async startCall(
-    targetId: number,
+    targetId: string | number,
     isVoiceOnly: boolean = false,
   ): Promise<void> {
     console.log(
@@ -162,7 +162,7 @@ export class WebRTCService {
 
   static async handleIncomingCall(
     offer: any,
-    callerId: number,
+    callerId: string | number,
     isVoiceOnly: boolean = false,
   ): Promise<void> {
     this.targetUserId = callerId;
@@ -227,7 +227,14 @@ export class WebRTCService {
     }
   }
 
-  static createPeerConnection(targetId: number) {
+  static createPeerConnection(targetId: string | number): void {
+    console.log('[WebRTC] Creating peer connection for targetId:', targetId);
+    if (!targetId) {
+      console.error(
+        '[WebRTC] Cannot create peer connection: targetId is null/undefined',
+      );
+    }
+
     if (this.peerConnection) {
       this.peerConnection.close();
     }
@@ -237,6 +244,7 @@ export class WebRTCService {
     // @ts-ignore
     this.peerConnection.onicecandidate = event => {
       if (event.candidate) {
+        console.log('[WebRTC] Generated ICE candidate for targetId:', targetId);
         socketService.sendIceCandidate(targetId, event.candidate);
       }
     };

@@ -38,6 +38,7 @@ const ChatRoomScreen = () => {
     const { id: profileId } = useProfile();
     const [chatName, setChatName] = useState(name || 'Chat');
     const [chatAvatar, setChatAvatar] = useState(avatar);
+    const [otherUserId, setOtherUserId] = useState<number | null>(null);
 
     const [conversationId, setConversationId] = useState<string | undefined>(initialId);
     const [messages, setMessages] = useState<Message[]>([]);
@@ -50,13 +51,18 @@ const ChatRoomScreen = () => {
     // Try to find conversation info if name is not provided (e.g., opening from notification)
     useEffect(() => {
         const convId = conversationId || initialId;
-        if (convId && (!name || name === 'Chat')) {
+        if (convId) {
             const found = conversations.find(conv => conv.id.toString() === convId);
             if (found && !found.isGroup) {
                 // Find the other user in the conversation (not current user)
                 const otherUser = found.Users.find(u => u.id !== profileId);
                 if (otherUser) {
-                    setChatName(otherUser.displayName || otherUser.userCode || 'Chat');
+                    // Set the other user's ID for calling
+                    setOtherUserId(otherUser.id);
+                    // Set name if not provided
+                    if (!name || name === 'Chat') {
+                        setChatName(otherUser.displayName || otherUser.userCode || 'Chat');
+                    }
                     if (otherUser.avatar && !chatAvatar) {
                         setChatAvatar(otherUser.avatar);
                     }
@@ -367,7 +373,7 @@ const ChatRoomScreen = () => {
                     </TouchableOpacity>
                     <TouchableOpacity
                         style={styles.profileInfo}
-                        onPress={() => navigation.navigate('FriendProfile', { id: initialId || '', name: chatName, userCode: recipientCode, avatar: chatAvatar })}
+                        onPress={() => otherUserId && navigation.navigate('FriendProfile', { id: otherUserId.toString(), name: chatName, userCode: recipientCode, avatar: chatAvatar })}
                         activeOpacity={0.7}
                     >
                         <View style={styles.avatar}>
@@ -386,15 +392,17 @@ const ChatRoomScreen = () => {
                 <View style={styles.headerRight}>
                     <TouchableOpacity
                         style={styles.iconButton}
-                        onPress={() => navigation.navigate('VideoCall', { userId: initialId || '', userName: chatName })}
+                        onPress={() => otherUserId && navigation.navigate('VideoCall', { userId: otherUserId.toString(), userName: chatName })}
+                        disabled={!otherUserId}
                     >
-                        <Video size={22} color={COLORS.black} />
+                        <Video size={22} color={otherUserId ? COLORS.black : COLORS.darkGray} />
                     </TouchableOpacity>
                     <TouchableOpacity
                         style={styles.iconButton}
-                        onPress={() => navigation.navigate('VoiceCall', { userId: initialId || '', userName: chatName })}
+                        onPress={() => otherUserId && navigation.navigate('VoiceCall', { userId: otherUserId.toString(), userName: chatName })}
+                        disabled={!otherUserId}
                     >
-                        <Phone size={22} color={COLORS.black} />
+                        <Phone size={22} color={otherUserId ? COLORS.black : COLORS.darkGray} />
                     </TouchableOpacity>
                 </View>
             </View>

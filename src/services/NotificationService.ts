@@ -1,4 +1,10 @@
 import messaging from '@react-native-firebase/messaging';
+import notifee, {
+  AndroidImportance,
+  AndroidVisibility,
+  EventType,
+  AndroidCategory,
+} from '@notifee/react-native';
 import { Platform, PermissionsAndroid, Alert } from 'react-native';
 import { api } from './ApiService';
 
@@ -30,30 +36,44 @@ class NotificationService {
   }
 
   async registerTokenWithBackend() {
+    console.log('[NotificationService] Starting token registration...');
     const token = await this.getFcmToken();
     const authToken = await api.getAuthToken();
 
     // Validate token exists and is not empty
     if (!token || token.trim() === '') {
-      console.log('FCM token is empty or null, skipping registration');
+      console.warn(
+        '[NotificationService] FCM token is empty or null, skipping registration',
+      );
       return false;
     }
 
     if (!authToken) {
-      console.log('No auth token, skipping push token registration');
+      console.warn(
+        '[NotificationService] No auth token found, user might not be logged in. Skipping push token registration',
+      );
       return false;
     }
 
     try {
-      console.log('Registering FCM token with backend...', token);
+      console.log(
+        '[NotificationService] Registering FCM token with backend:',
+        token,
+      );
       const response = await api.post('/users/push-token', {
         fcmToken: token,
         platform: Platform.OS,
       });
-      console.log('Token registered with backend:', response.data);
+      console.log(
+        '[NotificationService] Token registered successfully:',
+        response.data,
+      );
       return true;
     } catch (error) {
-      console.error('Error registering token with backend:', error);
+      console.error(
+        '[NotificationService] Error registering token with backend:',
+        error,
+      );
       return false;
     }
   }
@@ -61,6 +81,15 @@ class NotificationService {
   onMessage(callback: (message: any) => void) {
     return messaging().onMessage(async remoteMessage => {
       console.log('Foreground message received:', remoteMessage);
+
+      // If it's a call, show actionable notification via Notifee
+      if (
+        remoteMessage.data?.type === 'call' ||
+        remoteMessage.data?.type === 'video_call'
+      ) {
+        await this.displayCallNotification(remoteMessage);
+      }
+
       callback(remoteMessage);
     });
   }
@@ -90,6 +119,60 @@ class NotificationService {
   setBackgroundMessageHandler() {
     messaging().setBackgroundMessageHandler(async remoteMessage => {
       console.log('Message handled in the background!', remoteMessage);
+
+      // If it's a call, show actionable notification via Notifee
+      if (
+        remoteMessage.data?.type === 'call' ||
+        remoteMessage.data?.type === 'video_call'
+      ) {
+        await this.displayCallNotification(remoteMessage);
+      }
+    });
+  }
+
+  async displayCallNotification(remoteMessage: any) {
+    const { data } = remoteMessage;
+    const isVideo = data.type === 'video_call';
+    const callerName = data.callerName || 'Unknown Caller';
+    const callerId = data.callerId || data.from;
+
+    // Create a channel (required for Android)
+    const channelId = await notifee.createChannel({
+      id: 'calls',
+      name: 'Incoming Calls',
+      importance: AndroidImportance.HIGH,
+      visibility: AndroidVisibility.PUBLIC,
+      sound: 'passpot_bell', // Custom sound file without extension
+      vibration: true,
+    });
+
+    // Display a notification
+    await notifee.displayNotification({
+      title: `Incoming ${isVideo ? 'Video' : 'Voice'} Call`,
+      body: callerName,
+      android: {
+        channelId,
+        importance: AndroidImportance.HIGH,
+        category: AndroidCategory.CALL,
+        ongoing: true,
+        autoCancel: false,
+        smallIcon: 'ic_notification', // Ensure this exists or use a default
+        color: '#4CAF50',
+        actions: [
+          {
+            title: '<font color="#FF3B30">Decline</font>',
+            pressAction: { id: 'reject_call' },
+          },
+          {
+            title: '<font color="#4CAF50">Accept</font>',
+            pressAction: { id: 'accept_call', launchActivity: 'default' },
+          },
+        ],
+      },
+      data: {
+        ...data,
+        callerId: callerId.toString(),
+      },
     });
   }
 
@@ -101,6 +184,14 @@ class NotificationService {
         this.onNotificationOpenedApp(onNotification);
         this.getInitialNotification(onNotification);
       }
+
+      // For Android, create a default channel for custom sound if needed
+      // Note: Full channel management usually requires a library like Notifee or
+      // react-native-push-notification. With just @react-native-firebase/messaging,
+      // the backend should specify the channelId and sound in the payload.
+      console.log(
+        '[NotificationService] Initialized with custom sound support (passpot_bell)',
+      );
     } else {
       console.log('Notification permission denied');
     }

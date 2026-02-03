@@ -158,7 +158,7 @@ class SocketService {
 
   // WebRTC Signaling Methods
 
-  callUser(to: number, offer: any, callType: 'audio' | 'video'): void {
+  callUser(to: string | number, offer: any, callType: 'audio' | 'video'): void {
     console.log('[Socket] callUser called, connected:', this.socket?.connected);
     console.log('[Socket] Calling user:', to, 'callType:', callType);
     if (this.socket?.connected) {
@@ -169,28 +169,34 @@ class SocketService {
     }
   }
 
-  makeAnswer(to: number, answer: any): void {
+  makeAnswer(to: string | number, answer: any): void {
     if (this.socket?.connected) {
       console.log('Sending answer to:', to);
       this.socket.emit('make-answer', { to, answer });
     }
   }
 
-  sendIceCandidate(to: number, candidate: any): void {
+  sendIceCandidate(to: string | number, candidate: any): void {
+    if (!to) {
+      console.warn(
+        '[Socket] Cannot send ICE candidate: target ID is null/undefined',
+      );
+      return;
+    }
     if (this.socket?.connected) {
-      console.log('Sending ICE candidate to:', to);
+      console.log('[Socket] Sending ICE candidate to:', to);
       this.socket.emit('ice-candidate', { to, candidate });
     }
   }
 
-  rejectCall(to: number): void {
+  rejectCall(to: string | number): void {
     if (this.socket?.connected) {
       console.log('Rejecting call from:', to);
       this.socket.emit('reject-call', { to });
     }
   }
 
-  endCall(to: number): void {
+  endCall(to: string | number): void {
     if (this.socket?.connected) {
       console.log('Ending call with:', to);
       this.socket.emit('end-call', { to });
@@ -199,9 +205,17 @@ class SocketService {
 
   // Register callbacks for WebRTC events
   onIncomingCall(callback: (data: any) => void): void {
-    console.log('[Socket] Registering incoming call listener (call-made)');
+    console.log(
+      '[Socket] Registering incoming call listener (call-made & incoming-call)',
+    );
+    // Listen for 'call-made' (standard WebRTC naming in this app)
     this.socket?.on('call-made', data => {
       console.log('[Socket] call-made event received:', data);
+      callback(data);
+    });
+    // Add redundant listener for 'incoming-call' (common in some socket implementations)
+    this.socket?.on('incoming-call', data => {
+      console.log('[Socket] incoming-call event received:', data);
       callback(data);
     });
   }

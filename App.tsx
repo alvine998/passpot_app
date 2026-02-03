@@ -41,6 +41,8 @@ import LogoutScreen from './src/screens/LogoutScreen';
 import FriendProfileScreen from './src/screens/FriendProfileScreen';
 import VerifyPINScreen from './src/screens/VerifyPINScreen';
 import { notificationService } from './src/services/NotificationService';
+import notifee from '@notifee/react-native';
+import { handleCallAction } from './src/services/CallActionHandler';
 import { Alert } from 'react-native';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -126,19 +128,54 @@ function AppNavigator() {
   React.useEffect(() => {
     // Initialize notification service
     notificationService.initialize((message) => {
-      // Handle foreground notification
-      const conversationId = message.data?.conversationId;
-      const recipientCode = message.data?.recipientCode;
-      const name = message.data?.name;
+      console.log('Push notification received:', message);
 
-      if (conversationId && navigationRef.isReady()) {
+      if (!navigationRef.isReady()) {
+        console.warn('Navigation not ready, skipping notification handling');
+        return;
+      }
+
+      const {
+        type,
+        conversationId,
+        recipientCode,
+        name,
+        userId,
+        callerName,
+        senderName,
+        displayName
+      } = message.data || {};
+
+      const fcmName = message.notification?.title;
+      const finalName = name || callerName || senderName || displayName || fcmName || 'Chat';
+
+      // Handle Call Notifications
+      if (type === 'call' || type === 'video_call') {
+        const screen = type === 'video_call' ? 'VideoCall' : 'VoiceCall';
+        navigationRef.navigate(screen, {
+          userId: userId || recipientCode || '',
+          userName: finalName === 'Chat' ? 'Passpot User' : finalName,
+          isIncoming: true
+        });
+        return;
+      }
+
+      // Handle Chat Notifications
+      if (conversationId) {
         navigationRef.navigate('ChatRoom', {
           id: conversationId,
           recipientCode: recipientCode,
-          name: name || 'Chat',
+          name: finalName,
         });
       }
     });
+
+    // Add Notifee foreground event listener
+    const unsubscribeForeground = notifee.onForegroundEvent(handleCallAction);
+
+    return () => {
+      unsubscribeForeground();
+    };
   }, []);
 
   React.useEffect(() => {

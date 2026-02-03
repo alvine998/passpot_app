@@ -1,8 +1,8 @@
 import { api } from './ApiService';
 
 export interface CallLogPayload {
-  callerId: number;
-  receiverId: number;
+  callerId: string;
+  receiverId: string;
   callType: 'audio' | 'video';
   status: 'missed' | 'completed' | 'rejected' | 'busy';
   duration?: number;
