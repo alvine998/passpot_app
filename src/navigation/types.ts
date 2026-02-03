@@ -46,6 +46,7 @@ export type RootStackParamList = {
   AppInfo: undefined;
   VoiceCall: { userId: string; userName: string; isIncoming?: boolean };
   VideoCall: { userId: string; userName: string; isIncoming?: boolean };
+  CallLog: undefined;
   SetupPIN: { isOnboarding: boolean; email?: string };
   VerifyPIN: { email?: string };
   Logout: undefined;

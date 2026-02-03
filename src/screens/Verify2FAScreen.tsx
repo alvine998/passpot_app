@@ -86,7 +86,7 @@ const Verify2FAScreen = () => {
                     ? t('verify2FA.enabledOnboarding')
                     : t('verify2FA.enabledSecurity'),
                 [{
-                    text: t('common.continue', 'Continue'),
+                    text: 'Lanjutkan',
                     onPress: async () => {
                         if (isOnboarding) {
                             try {
@@ -160,7 +160,7 @@ const Verify2FAScreen = () => {
                                 onChangeText={(value) => handleOtpChange(value, index)}
                                 onKeyPress={(e) => handleKeyPress(e, index)}
                                 keyboardType="number-pad"
-                                maxLength={index === 0 ? 6 : 1}
+                                maxLength={6}
                                 selectTextOnFocus
                                 editable={!isLoading}
                             />
@@ -173,20 +173,20 @@ const Verify2FAScreen = () => {
                         style={styles.openAuthButton}
                         onPress={() => {
                             // Try generic launch, or inform user
-                            const url = 'otpauth://';
+                            const url = 'otpauth://totp/Passpot:' + email + '?secret=' + secret + '&issuer=Passpot';
                             Linking.canOpenURL(url).then(supported => {
                                 if (supported) {
                                     return Linking.openURL(url);
                                 } else {
                                     // Fallback to searching store or just alert
-                                    Alert.alert(t('common.info'), t('verify2FA.openManually', 'Please open your Authenticator app manually.'));
+                                    Alert.alert('Info', t('verify2FA.openManually', 'Silakan buka aplikasi Authenticator Anda secara manual.'));
                                 }
                             }).catch(() => {
-                                Alert.alert(t('common.info'), t('verify2FA.openManually', 'Please open your Authenticator app manually.'));
+                                Alert.alert('Info', t('verify2FA.openManually', 'Silakan buka aplikasi Authenticator Anda secara manual.'));
                             });
                         }}
                     >
-                        <Text style={styles.openAuthButtonText}>{t('setup2FA.openApp', 'Open Authenticator App')}</Text>
+                        <Text style={styles.openAuthButtonText}>{t('setup2FA.openApp', 'Buka Aplikasi Authenticator')}</Text>
                     </TouchableOpacity>
 
                     <View style={styles.flexSpacer} />

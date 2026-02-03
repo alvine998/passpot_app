@@ -30,6 +30,7 @@ const MessageBubble = React.memo(({
 }: MessageBubbleProps) => {
     const { t } = useTranslation();
     const [showMenu, setShowMenu] = useState(false);
+    const [showFullImage, setShowFullImage] = useState(false);
 
     const handleLongPress = useCallback(() => {
         if (!isLocked) {
@@ -74,7 +75,12 @@ const MessageBubble = React.memo(({
         if (image) {
             return (
                 <View style={styles.imageContainer}>
-                    <Image source={{ uri: image }} style={styles.messageImage} />
+                    <TouchableOpacity
+                        onPress={() => !isLocked && setShowFullImage(true)}
+                        activeOpacity={0.9}
+                    >
+                        <Image source={{ uri: image }} style={styles.messageImage} />
+                    </TouchableOpacity>
                     {text && <Text style={[styles.text, isMe ? styles.myText : styles.theirText, { marginTop: SPACING.xs }]}>{isLocked ? '••••••••' : text}</Text>}
                 </View>
             );
@@ -157,6 +163,31 @@ const MessageBubble = React.memo(({
                             </TouchableOpacity>
                         )}
                     </View>
+                </Pressable>
+            </Modal>
+
+            {/* Full Screen Image Modal */}
+            <Modal
+                visible={showFullImage}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setShowFullImage(false)}
+            >
+                <Pressable
+                    style={styles.fullImageOverlay}
+                    onPress={() => setShowFullImage(false)}
+                >
+                    <TouchableOpacity
+                        style={styles.closeButton}
+                        onPress={() => setShowFullImage(false)}
+                    >
+                        <X size={28} color={COLORS.white} />
+                    </TouchableOpacity>
+                    <Image
+                        source={{ uri: image }}
+                        style={styles.fullImage}
+                        resizeMode="contain"
+                    />
                 </Pressable>
             </Modal>
         </>
@@ -299,6 +330,24 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: COLORS.black,
         marginLeft: SPACING.md,
+    },
+    // Full screen image styles
+    fullImageOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.95)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    closeButton: {
+        position: 'absolute',
+        top: 50,
+        right: 20,
+        zIndex: 10,
+        padding: 10,
+    },
+    fullImage: {
+        width: '100%',
+        height: '80%',
     },
 });
 

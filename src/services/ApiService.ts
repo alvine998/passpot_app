@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Base API Configuration
-const API_BASE_URL = 'https://5253c5958be2.ngrok-free.app/api';
+const API_BASE_URL = 'http://154.26.137.37:5040/api';
 
 // Token storage key
 const AUTH_TOKEN_KEY = '@passpot_auth_token';

@@ -17,7 +17,7 @@ const AppInfoScreen = () => {
                         <Shield size={60} color={COLORS.white} />
                     </View>
                     <Text style={styles.appName}>Passpot</Text>
-                    <Text style={styles.version}>{t('help.version')} 1.0.3</Text>
+                    <Text style={styles.version}>{t('help.version')} 1.3.2</Text>
                 </View>
 
                 <Text style={styles.description}>

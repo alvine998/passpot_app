@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useCallback, useEffect } from 'react';
 import { api } from '../services/ApiService';
+import { socketService } from '../services/SocketService';
 
 export interface ChatUser {
     id: number;
@@ -53,6 +54,7 @@ interface ChatContextType {
     fetchConversations: () => Promise<void>;
     fetchMessages: (conversationId: string) => Promise<ChatMessage[]>;
     sendMessage: (content: string, params: SendMessageParams) => Promise<ChatMessage | null>;
+    updateConversationLastMessage: (conversationId: number, message: ChatMessage) => void;
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -62,13 +64,62 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    // Update a conversation's last message and move it to top
+    const updateConversationLastMessage = useCallback((conversationId: number, message: ChatMessage) => {
+        setConversations(prevConversations => {
+            const updatedConversations = prevConversations.map(conv => {
+                if (conv.id === conversationId) {
+                    return {
+                        ...conv,
+                        lastMessage: {
+                            id: message.id,
+                            content: message.content,
+                            createdAt: message.createdAt,
+                        },
+                        updatedAt: message.createdAt,
+                    };
+                }
+                return conv;
+            });
+            // Sort by updatedAt to move the updated conversation to top
+            return updatedConversations.sort((a, b) =>
+                new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+            );
+        });
+    }, []);
+
+    // Listen for new messages via socket
+    useEffect(() => {
+        const CHAT_CONTEXT_CALLBACK_ID = 'chatContextNewMessage';
+
+        const handleNewMessage = (message: any) => {
+            console.log('[ChatContext] New message received:', message);
+            if (message.conversationId) {
+                updateConversationLastMessage(message.conversationId, message);
+            } else {
+                // If we don't have the conversation, refetch all
+                fetchConversations();
+            }
+        };
+
+        socketService.onNewMessage(CHAT_CONTEXT_CALLBACK_ID, handleNewMessage);
+
+        return () => {
+            socketService.offNewMessage(CHAT_CONTEXT_CALLBACK_ID);
+        };
+    }, [updateConversationLastMessage]);
+
     const fetchConversations = useCallback(async () => {
         setIsLoading(true);
         setError(null);
         try {
             const response = await api.get<{ success: boolean; data: Conversation[] }>('/chat/conversations');
             if (response.data.success) {
-                setConversations(response.data.data);
+                // Sort by updatedAt
+                const sorted = response.data.data.sort((a, b) =>
+                    new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+                );
+                setConversations(sorted);
             } else {
                 setError('Failed to fetch conversations');
             }
@@ -149,7 +200,8 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
             error,
             fetchConversations,
             fetchMessages,
-            sendMessage
+            sendMessage,
+            updateConversationLastMessage
         }}>
             {children}
         </ChatContext.Provider>

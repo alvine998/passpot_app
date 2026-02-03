@@ -10,7 +10,7 @@ import { COLORS } from './src/styles/theme';
 import { RootStackParamList } from './src/navigation/types';
 
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { MessageCircle, CircleDot, Newspaper, User as UserIcon } from 'lucide-react-native';
+import { MessageCircle, CircleDot, Newspaper, Phone } from 'lucide-react-native';
 
 import WelcomeScreen from './src/screens/WelcomeScreen';
 import ChatListScreen from './src/screens/ChatListScreen';
@@ -18,6 +18,7 @@ import ChatRoomScreen from './src/screens/ChatRoomScreen';
 import StatusScreen from './src/screens/StatusScreen';
 import NewsScreen from './src/screens/NewsScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
+import CallLogScreen from './src/screens/CallLogScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import ContactListScreen from './src/screens/ContactListScreen';
 import NewsDetailScreen from './src/screens/NewsDetailScreen';
@@ -81,8 +82,8 @@ function MainTabs() {
             return <CircleDot color={color} size={iconSize} />;
           } else if (route.name === 'News') {
             return <Newspaper color={color} size={iconSize} />;
-          } else if (route.name === 'Profile') {
-            return <UserIcon color={color} size={iconSize} />;
+          } else if (route.name === 'CallLog') {
+            return <Phone color={color} size={iconSize} />;
           }
         },
       })}
@@ -103,9 +104,9 @@ function MainTabs() {
         options={{ tabBarLabel: i18n.t('tabs.news') }}
       />
       <Tab.Screen
-        name="Profile"
-        component={ProfileScreen}
-        options={{ tabBarLabel: i18n.t('tabs.profile') }}
+        name="CallLog"
+        component={CallLogScreen}
+        options={{ tabBarLabel: i18n.t('tabs.calls') }}
       />
     </Tab.Navigator>
   );
@@ -188,6 +189,7 @@ function AppNavigator() {
       <Stack.Screen name="SetupPIN" component={SetupPINScreen} />
       <Stack.Screen name="VerifyPIN" component={VerifyPINScreen} />
       <Stack.Screen name="FriendProfile" component={FriendProfileScreen} />
+      <Stack.Screen name="Profile" component={ProfileScreen} />
     </Stack.Navigator>
   );
 }

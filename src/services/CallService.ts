@@ -1,24 +1,41 @@
 import { api } from './ApiService';
 
+export interface CallLogPayload {
+  callerId: number;
+  receiverId: number;
+  callType: 'audio' | 'video';
+  status: 'missed' | 'completed' | 'rejected' | 'busy';
+  duration?: number;
+  startTime: string;
+  endTime?: string;
+}
+
 export class CallService {
   /**
-   * Log a call attempt to the backend
-   * @param receiverId - The ID of the user being called
-   * @param callType - The type of call ('audio' or 'video')
+   * Log a call to the backend
+   * @param payload - The call log data
    */
-  static async logCall(
-    receiverId: number,
-    callType: 'audio' | 'video',
-  ): Promise<void> {
+  static async logCall(payload: CallLogPayload): Promise<boolean> {
     try {
-      console.log('Logging call:', { receiverId, callType });
-      await api.post('/calls', {
-        receiverId,
-        callType,
-      });
+      console.log('Logging call:', payload);
+      await api.post('/calls', payload);
+      return true;
     } catch (error) {
       console.error('Error logging call:', error);
-      // We don't want to block the call flow if logging fails
+      return false;
+    }
+  }
+
+  /**
+   * Get call history
+   */
+  static async getCallHistory(): Promise<any[]> {
+    try {
+      const response = await api.get<{ data: any[] }>('/calls/history');
+      return response.data?.data || [];
+    } catch (error) {
+      console.error('Error fetching call history:', error);
+      return [];
     }
   }
 }

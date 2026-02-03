@@ -18,6 +18,34 @@ const Login2FAScreen = () => {
     const { t } = useTranslation();
 
     const handleChange = (text: string, index: number) => {
+        if (text.length > 1) {
+            const pastedData = text.split('');
+            const newOtp = [...otp];
+            let lastIndex = index;
+
+            for (let i = 0; i < pastedData.length; i++) {
+                if (index + i < 6) {
+                    newOtp[index + i] = pastedData[i];
+                    lastIndex = index + i;
+                }
+            }
+            setOtp(newOtp);
+
+            if (newOtp.every(digit => digit !== '') && newOtp.join('').length === 6) {
+                const enteredOtp = newOtp.join('');
+                if (enteredOtp === '123456') { // Mock verification
+                    notificationService.registerTokenWithBackend();
+                    socketService.connect();
+                    navigation.navigate('MainTabs');
+                } else {
+                    Alert.alert(t('login2FA.invalidCode'), t('login2FA.invalidCodeDesc'));
+                }
+            } else if (lastIndex < 5) {
+                inputRefs.current[lastIndex + 1]?.focus();
+            }
+            return;
+        }
+
         const newOtp = [...otp];
         newOtp[index] = text;
         setOtp(newOtp);
@@ -78,7 +106,7 @@ const Login2FAScreen = () => {
                                 onChangeText={(text) => handleChange(text, index)}
                                 onKeyPress={(e) => handleKeyPress(e, index)}
                                 keyboardType="number-pad"
-                                maxLength={1}
+                                maxLength={6}
                                 autoFocus={index === 0}
                             />
                         ))}

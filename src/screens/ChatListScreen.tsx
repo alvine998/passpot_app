@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Platform, BackHandler } from 'react-native';
 import Header from '../components/Header';
 import ChatItem from '../components/ChatItem';
 import { COLORS, SPACING } from '../styles/theme';
-import { MessageSquarePlus, ArrowLeft, X } from 'lucide-react-native';
+import { MessageSquarePlus, Search } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
@@ -20,7 +20,6 @@ const ChatListScreen = () => {
     const { t } = useTranslation();
     const { conversations, isLoading: isChatLoading, fetchConversations } = useChat();
     const { id: currentUserId, isUnlocked, setUnlocked } = useProfile();
-    const [isSearching, setIsSearching] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [showSecurity, setShowSecurity] = useState(false);
 
@@ -50,7 +49,7 @@ const ChatListScreen = () => {
         }, [])
     );
 
-    const filteredChats = React.useMemo(() =>
+    const filteredChats = useMemo(() =>
         conversations.filter(conv => {
             const otherUser = conv.Users.find(u => u.id !== currentUserId);
             const name = conv.isGroup ? 'Group Chat' : (otherUser?.displayName || 'Unknown');
@@ -60,35 +59,7 @@ const ChatListScreen = () => {
         }),
         [conversations, searchQuery, currentUserId]);
 
-    const renderChatListHeader = React.useCallback(() => {
-        if (isSearching) {
-            return (
-                <View style={styles.searchHeader}>
-                    <TouchableOpacity onPress={() => {
-                        setIsSearching(false);
-                        setSearchQuery('');
-                    }} style={styles.searchBackIcon}>
-                        <ArrowLeft size={24} color={COLORS.black} />
-                    </TouchableOpacity>
-                    <TextInput
-                        style={styles.searchInput}
-                        placeholder={t('chatList.searchPlaceholder')}
-                        autoFocus
-                        value={searchQuery}
-                        onChangeText={setSearchQuery}
-                    />
-                    {searchQuery.length > 0 && (
-                        <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.searchClearIcon}>
-                            <X size={20} color={COLORS.black} />
-                        </TouchableOpacity>
-                    )}
-                </View>
-            );
-        }
-        return <Header title="Passpot" onSearchPress={() => setIsSearching(true)} />;
-    }, [isSearching, searchQuery, t]);
-
-    const renderItem = React.useCallback(({ item }: any) => (
+    const renderItem = useCallback(({ item }: any) => (
         <ChatItem
             conversation={item}
             isLocked={!isUnlocked}
@@ -98,7 +69,21 @@ const ChatListScreen = () => {
 
     return (
         <View style={styles.container}>
-            {renderChatListHeader()}
+            <Header title="Passpot" showSearch={false} />
+
+            {/* Search Input */}
+            <View style={styles.searchContainer}>
+                <View style={styles.searchInputWrapper}>
+                    <Search size={18} color={COLORS.darkGray} />
+                    <TextInput
+                        style={styles.searchInput}
+                        placeholder={t('chatList.searchPlaceholder')}
+                        placeholderTextColor={COLORS.darkGray}
+                        value={searchQuery}
+                        onChangeText={setSearchQuery}
+                    />
+                </View>
+            </View>
 
             <FlatList
                 data={filteredChats}
@@ -153,26 +138,24 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: COLORS.white,
     },
-    searchHeader: {
-        height: 60,
+    searchContainer: {
+        paddingHorizontal: SPACING.md,
+        paddingVertical: SPACING.sm,
+    },
+    searchInputWrapper: {
         flexDirection: 'row',
         alignItems: 'center',
+        backgroundColor: COLORS.gray,
+        borderRadius: 24,
         paddingHorizontal: SPACING.md,
-        backgroundColor: COLORS.white,
-        borderBottomWidth: 1,
-        borderBottomColor: COLORS.lightGray,
-    },
-    searchBackIcon: {
-        marginRight: SPACING.md,
+        paddingVertical: SPACING.sm,
     },
     searchInput: {
         flex: 1,
-        fontSize: 18,
-        color: COLORS.black,
-        padding: 0,
-    },
-    searchClearIcon: {
         marginLeft: SPACING.sm,
+        fontSize: 15,
+        color: COLORS.black,
+        paddingVertical: 4,
     },
     listContent: {
         paddingBottom: 80,

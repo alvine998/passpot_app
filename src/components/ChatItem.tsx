@@ -41,6 +41,8 @@ const ChatItem = React.memo(({ conversation, isLocked = false, onUnlockRequest }
             ? '••••••••••••••••'
             : (isImage ? '📷 Image' : lastMessageContent.substring(0, 30)));
 
+    console.log(otherUser, "oththth");
+
     const handlePress = () => {
         if (isLocked) {
             onUnlockRequest?.();

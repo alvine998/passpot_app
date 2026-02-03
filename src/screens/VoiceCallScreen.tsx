@@ -1,10 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Image } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/types';
 import { COLORS, SPACING } from '../styles/theme';
 import { PhoneOff, Mic, MicOff, Volume2, User } from 'lucide-react-native';
 import { WebRTCService } from '../services/WebRTCService';
+import { socketService } from '../services/SocketService';
+import { CallService } from '../services/CallService';
+import { useProfile } from '../context/ProfileContext';
 import { MediaStream } from 'react-native-webrtc';
 
 type VoiceCallRouteProp = RouteProp<RootStackParamList, 'VoiceCall'>;
@@ -17,9 +20,16 @@ const VoiceCallScreen = () => {
     const [isMuted, setIsMuted] = useState(false);
     const [isSpeaker, setIsSpeaker] = useState(false);
     const [seconds, setSeconds] = useState(0);
+    const [callState, setCallState] = useState<'calling' | 'ringing' | 'connected'>('calling');
     const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+    const { id: currentUserId } = useProfile();
+    const callStartTime = useRef<Date | null>(null);
+    const callConnectedTime = useRef<Date | null>(null);
 
     useEffect(() => {
+        // Record call start time
+        callStartTime.current = new Date();
+
         const startCall = async () => {
             // Get local stream from service if available, or request it
             let stream = WebRTCService.localStream;
@@ -31,9 +41,33 @@ const VoiceCallScreen = () => {
             // Start the actual call only if not incoming
             if (userId && !isIncoming) {
                 await WebRTCService.startCall(parseInt(userId), true);
+            } else if (isIncoming) {
+                // Incoming call is already connected
+                setCallState('connected');
+                callConnectedTime.current = new Date();
             }
         };
         startCall();
+
+        // Register socket listeners for signaling
+        socketService.onCallAnswered((data) => {
+            console.log('Call answered:', data);
+            setCallState('connected');
+            callConnectedTime.current = new Date();
+            WebRTCService.handleAnswer(data.answer);
+        });
+
+        socketService.onIceCandidate((data) => {
+            console.log('ICE candidate received:', data);
+            WebRTCService.handleCandidate(data.candidate);
+        });
+
+        socketService.onCallRejected(() => {
+            console.log('Call was rejected');
+            // Log rejected call
+            logCallEnd('rejected');
+            navigation.goBack();
+        });
 
         // Listen for call ended
         WebRTCService.onCallEnded = () => {
@@ -47,9 +81,10 @@ const VoiceCallScreen = () => {
         return () => {
             clearInterval(timer);
             WebRTCService.onCallEnded = null;
+            socketService.offSignalingEvents();
             // The service handles stream cleanup on endCall
         };
-    }, [userId]);
+    }, [userId, isIncoming, navigation]);
 
     const toggleMute = () => {
         const newMuted = !isMuted;
@@ -57,7 +92,34 @@ const VoiceCallScreen = () => {
         WebRTCService.setAudioEnabled(localStream, !newMuted);
     };
 
-    const handleEndCall = () => {
+    const logCallEnd = async (status: 'completed' | 'missed' | 'rejected' | 'busy') => {
+        if (!currentUserId || !userId) return;
+
+        const endTime = new Date();
+        const startTime = callStartTime.current || endTime;
+        const connectedTime = callConnectedTime.current;
+
+        // Calculate duration only if call was connected
+        let duration = 0;
+        if (connectedTime && status === 'completed') {
+            duration = Math.floor((endTime.getTime() - connectedTime.getTime()) / 1000);
+        }
+
+        await CallService.logCall({
+            callerId: isIncoming ? parseInt(userId) : parseInt(currentUserId.toString()),
+            receiverId: isIncoming ? parseInt(currentUserId.toString()) : parseInt(userId),
+            callType: 'audio',
+            status,
+            duration,
+            startTime: startTime.toISOString(),
+            endTime: endTime.toISOString(),
+        });
+    };
+
+    const handleEndCall = async () => {
+        // Log completed call if it was connected, otherwise missed
+        const status = callState === 'connected' ? 'completed' : 'missed';
+        await logCallEnd(status);
         WebRTCService.endCall();
         navigation.goBack();
     };
@@ -78,7 +140,9 @@ const VoiceCallScreen = () => {
                         </View>
                     </View>
                     <Text style={styles.name}>{userName}</Text>
-                    <Text style={styles.status}>{seconds === 0 ? 'Calling...' : formatTime(seconds)}</Text>
+                    <Text style={styles.status}>
+                        {callState === 'calling' ? 'Calling...' : callState === 'connected' ? formatTime(seconds) : 'Ringing...'}
+                    </Text>
                 </View>
 
                 <View style={styles.controlsContainer}>

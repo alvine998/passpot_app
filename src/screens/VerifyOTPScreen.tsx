@@ -8,6 +8,7 @@ import { ArrowLeft, MoreVertical } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { api } from '../services/ApiService';
 import { useProfile } from '../context/ProfileContext';
+import normalize from 'react-native-normalize';
 
 type VerifyOTPScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'VerifyOTP'>;
 type VerifyOTPScreenRouteProp = RouteProp<RootStackParamList, 'VerifyOTP'>;
@@ -88,6 +89,28 @@ const VerifyOTPScreen = () => {
     const handleChange = (text: string, index: number) => {
         if (isLoading) return;
 
+        if (text.length > 1) {
+            const pastedData = text.split('');
+            const newOtp = [...otp];
+            let lastIndex = index;
+
+            for (let i = 0; i < pastedData.length; i++) {
+                if (index + i < 6) {
+                    newOtp[index + i] = pastedData[i];
+                    lastIndex = index + i;
+                }
+            }
+            setOtp(newOtp);
+
+            if (newOtp.every(digit => digit !== '') && newOtp.join('').length === 6) {
+                const enteredOtp = newOtp.join('');
+                verifyOtp(enteredOtp);
+            } else if (lastIndex < 5) {
+                inputRefs.current[lastIndex + 1]?.focus();
+            }
+            return;
+        }
+
         const newOtp = [...otp];
         newOtp[index] = text;
         setOtp(newOtp);
@@ -151,7 +174,7 @@ const VerifyOTPScreen = () => {
 
                 <ScrollView contentContainerStyle={styles.content}>
                     <Text style={styles.instruction}>
-                        {t('verifyOTP.instruction', { email })} <TouchableOpacity onPress={() => navigation.goBack()} disabled={isLoading}><Text style={styles.link}>{t('verifyOTP.wrongEmail')}</Text></TouchableOpacity>
+                        {t('verifyOTP.instruction', { email })}
                     </Text>
 
                     <View style={styles.otpContainer}>
@@ -164,7 +187,7 @@ const VerifyOTPScreen = () => {
                                 onChangeText={(text) => handleChange(text, index)}
                                 onKeyPress={(e) => handleKeyPress(e, index)}
                                 keyboardType="number-pad"
-                                maxLength={1}
+                                maxLength={6}
                                 autoFocus={index === 0}
                                 editable={!isLoading}
                             />

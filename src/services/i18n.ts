@@ -17,6 +17,7 @@ const resources = {
         status: 'Status',
         news: 'Berita',
         profile: 'Profil',
+        calls: 'Panggilan',
       },
       chatList: {
         searchPlaceholder: 'Cari chat...',
@@ -51,9 +52,9 @@ const resources = {
         settingHelpSub: 'Pusat bantuan, hubungi kami, kebijakan privasi',
         logout: 'Keluar',
         logoutConfirmation: 'Apakah Anda yakin ingin keluar?',
-        inviteByPin: 'Undang melalui PIN',
-        enterPinTitle: 'Masukkan PIN Kontak',
-        enterPinSubtitle: 'Masukkan 6 digit kode alfanumerik kontak Anda',
+        inviteByPin: 'Undang melalui ID Passpot',
+        enterPinTitle: 'Masukkan ID Kontak',
+        enterPinSubtitle: 'Masukkan ID kontak Anda',
         addContact: 'TAMBAH KONTAK',
       },
       privacy: {
@@ -152,6 +153,15 @@ const resources = {
         bio: 'Bio',
         sharedMedia: 'Media Bersama',
         noSharedMedia: 'Belum ada media yang dibagikan',
+      },
+      callLog: {
+        title: 'Panggilan',
+        yesterday: 'Kemarin',
+        videoCall: 'Panggilan Video',
+        voiceCall: 'Panggilan Suara',
+        unknownCaller: 'Penelepon Tidak Dikenal',
+        noCallsTitle: 'Belum Ada Panggilan',
+        noCallsSubtitle: 'Riwayat panggilan Anda akan muncul di sini',
       },
       editProfile: {
         title: 'Edit Profil',
@@ -267,6 +277,7 @@ const resources = {
         status: 'Status',
         news: 'News',
         profile: 'Profile',
+        calls: 'Calls',
       },
       chatList: {
         searchPlaceholder: 'Search chats...',
@@ -384,6 +395,15 @@ const resources = {
         phone: 'Phone',
         save: 'Save',
         changePhoto: 'Change Photo',
+      },
+      callLog: {
+        title: 'Calls',
+        yesterday: 'Yesterday',
+        videoCall: 'Video Call',
+        voiceCall: 'Voice Call',
+        unknownCaller: 'Unknown Caller',
+        noCallsTitle: 'No Calls Yet',
+        noCallsSubtitle: 'Your call history will appear here',
       },
       loginEmail: {
         title: 'Enter your email',

@@ -2,7 +2,7 @@ import { io, Socket } from 'socket.io-client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Socket configuration - should match your API base URL (without /api path)
-const SOCKET_URL = 'https://5253c5958be2.ngrok-free.app';
+const SOCKET_URL = 'http://154.26.137.37:5040';
 const AUTH_TOKEN_KEY = '@passpot_auth_token';
 const USER_PROFILE_KEY = '@passpot_user_profile';
 
@@ -158,10 +158,14 @@ class SocketService {
 
   // WebRTC Signaling Methods
 
-  callUser(to: number, offer: any, type: 'audio' | 'video'): void {
+  callUser(to: number, offer: any, callType: 'audio' | 'video'): void {
+    console.log('[Socket] callUser called, connected:', this.socket?.connected);
+    console.log('[Socket] Calling user:', to, 'callType:', callType);
     if (this.socket?.connected) {
-      console.log('Calling user:', to, type);
-      this.socket.emit('call-user', { to, offer, type });
+      this.socket.emit('call-user', { to, offer, type: callType });
+      console.log('[Socket] call-user event emitted successfully');
+    } else {
+      console.warn('[Socket] Cannot call user - socket not connected!');
     }
   }
 
@@ -195,24 +199,47 @@ class SocketService {
 
   // Register callbacks for WebRTC events
   onIncomingCall(callback: (data: any) => void): void {
-    this.socket?.on('call-made', callback);
+    console.log('[Socket] Registering incoming call listener (call-made)');
+    this.socket?.on('call-made', data => {
+      console.log('[Socket] call-made event received:', data);
+      callback(data);
+    });
   }
 
   onCallAnswered(callback: (data: any) => void): void {
-    this.socket?.on('answer-made', callback);
+    console.log('[Socket] Registering call answered listener (answer-made)');
+    this.socket?.on('answer-made', data => {
+      console.log('[Socket] answer-made event received:', data);
+      callback(data);
+    });
   }
 
   onIceCandidate(callback: (data: any) => void): void {
-    this.socket?.on('ice-candidate', callback);
+    console.log('[Socket] Registering ICE candidate listener');
+    this.socket?.on('ice-candidate', data => {
+      console.log('[Socket] ice-candidate event received');
+      callback(data);
+    });
   }
 
   onCallRejected(callback: (data: any) => void): void {
-    this.socket?.on('call-rejected', callback);
+    console.log('[Socket] Registering call rejected listener');
+    this.socket?.on('call-rejected', data => {
+      console.log('[Socket] call-rejected event received:', data);
+      callback(data);
+    });
   }
 
   onCallEnded(callback: (data: any) => void): void {
-    this.socket?.on('end-call', callback); // Note: server might use 'call-ended' or 'end-call'
-    this.socket?.on('call-ended', callback);
+    console.log('[Socket] Registering call ended listeners');
+    this.socket?.on('end-call', data => {
+      console.log('[Socket] end-call event received:', data);
+      callback(data);
+    });
+    this.socket?.on('call-ended', data => {
+      console.log('[Socket] call-ended event received:', data);
+      callback(data);
+    });
   }
 
   // User Status Events

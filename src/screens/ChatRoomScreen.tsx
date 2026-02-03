@@ -36,7 +36,7 @@ const ChatRoomScreen = () => {
     const { id: initialId, recipientCode, name, avatar } = route.params;
     const { fetchMessages, sendMessage, conversations } = useChat();
     const { id: profileId } = useProfile();
-    const chatName = name || 'Chat';
+    const [chatName, setChatName] = useState(name || 'Chat');
     const [chatAvatar, setChatAvatar] = useState(avatar);
 
     const [conversationId, setConversationId] = useState<string | undefined>(initialId);
@@ -46,6 +46,24 @@ const ChatRoomScreen = () => {
     const [showAuthOverlay, setShowAuthOverlay] = useState(true);
     const [decryptedMap, setDecryptedMap] = useState<Record<string, string>>({});
     const flatListRef = useRef<FlatList>(null);
+
+    // Try to find conversation info if name is not provided (e.g., opening from notification)
+    useEffect(() => {
+        const convId = conversationId || initialId;
+        if (convId && (!name || name === 'Chat')) {
+            const found = conversations.find(conv => conv.id.toString() === convId);
+            if (found && !found.isGroup) {
+                // Find the other user in the conversation (not current user)
+                const otherUser = found.Users.find(u => u.id !== profileId);
+                if (otherUser) {
+                    setChatName(otherUser.displayName || otherUser.userCode || 'Chat');
+                    if (otherUser.avatar && !chatAvatar) {
+                        setChatAvatar(otherUser.avatar);
+                    }
+                }
+            }
+        }
+    }, [conversationId, initialId, conversations, name, profileId, chatAvatar]);
 
     // Try to find conversation ID if only recipientCode is provided
     useEffect(() => {

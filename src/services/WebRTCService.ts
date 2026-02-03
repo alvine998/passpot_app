@@ -6,12 +6,20 @@ import {
   RTCSessionDescription,
 } from 'react-native-webrtc';
 import { socketService } from './SocketService';
-import { CallService } from './CallService';
+import { Platform, PermissionsAndroid, Alert } from 'react-native';
 
 const configuration = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
+    {
+      urls: [
+        'turn:154.26.137.37:3478?transport=udp',
+        'turn:154.26.137.37:3478?transport=tcp',
+      ],
+      username: 'webrtc',
+      credential: 'StrongPasswordHere',
+    },
   ],
 };
 
@@ -25,10 +33,62 @@ export class WebRTCService {
   static onRemoteStream: ((stream: MediaStream) => void) | null = null;
   static onCallEnded: (() => void) | null = null;
 
+  static async requestPermissions(isVoiceOnly: boolean): Promise<boolean> {
+    if (Platform.OS === 'android') {
+      try {
+        const permissions = isVoiceOnly
+          ? [PermissionsAndroid.PERMISSIONS.RECORD_AUDIO]
+          : [
+              PermissionsAndroid.PERMISSIONS.CAMERA,
+              PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+            ];
+
+        const granted = await PermissionsAndroid.requestMultiple(permissions);
+
+        const audioGranted =
+          granted[PermissionsAndroid.PERMISSIONS.RECORD_AUDIO] ===
+          PermissionsAndroid.RESULTS.GRANTED;
+        const cameraGranted = isVoiceOnly
+          ? true
+          : granted[PermissionsAndroid.PERMISSIONS.CAMERA] ===
+            PermissionsAndroid.RESULTS.GRANTED;
+
+        console.log(
+          '[WebRTC] Permissions granted - Audio:',
+          audioGranted,
+          'Camera:',
+          cameraGranted,
+        );
+
+        if (!audioGranted || !cameraGranted) {
+          Alert.alert(
+            'Permissions Required',
+            'Camera and microphone permissions are required for calls.',
+            [{ text: 'OK' }],
+          );
+          return false;
+        }
+        return true;
+      } catch (err) {
+        console.error('[WebRTC] Permission request error:', err);
+        return false;
+      }
+    }
+    // iOS handles permissions automatically when getUserMedia is called
+    return true;
+  }
+
   static async getLocalStream(
     isVoiceOnly: boolean = false,
   ): Promise<MediaStream | null> {
     try {
+      // Request permissions first
+      const hasPermissions = await this.requestPermissions(isVoiceOnly);
+      if (!hasPermissions) {
+        console.error('[WebRTC] Permissions not granted');
+        return null;
+      }
+
       const constraints = {
         audio: true,
         video: isVoiceOnly
@@ -41,11 +101,23 @@ export class WebRTCService {
             },
       };
 
+      console.log(
+        '[WebRTC] Requesting media with constraints:',
+        JSON.stringify(constraints),
+      );
       const stream = await mediaDevices.getUserMedia(constraints);
+      console.log(
+        '[WebRTC] Got local stream with tracks:',
+        stream.getTracks().length,
+      );
       this.localStream = stream;
       return stream;
     } catch (error) {
-      console.error('Error getting local stream:', error);
+      console.error('[WebRTC] Error getting local stream:', error);
+      Alert.alert(
+        'Call Error',
+        'Failed to access camera/microphone. Please check permissions.',
+      );
       return null;
     }
   }
@@ -54,29 +126,37 @@ export class WebRTCService {
     targetId: number,
     isVoiceOnly: boolean = false,
   ): Promise<void> {
+    console.log(
+      '[WebRTC] Starting call to:',
+      targetId,
+      'isVoiceOnly:',
+      isVoiceOnly,
+    );
     this.targetUserId = targetId;
     this.createPeerConnection(targetId);
 
-    // Log the call attempt
-    const callType = isVoiceOnly ? 'audio' : 'video';
-    // Not awaiting to not block
-    CallService.logCall(targetId, callType).catch(console.error);
+    // Call logging is now handled in the call screens when call ends
 
     const stream = await this.getLocalStream(isVoiceOnly);
+    console.log('[WebRTC] Local stream obtained:', !!stream);
     if (stream) {
       stream.getTracks().forEach(track => {
+        console.log('[WebRTC] Adding track to peer connection:', track.kind);
         this.peerConnection?.addTrack(track, stream);
       });
     }
 
     try {
       const offer = await this.peerConnection?.createOffer({});
+      console.log('[WebRTC] Offer created:', !!offer);
       await this.peerConnection?.setLocalDescription(offer);
+      console.log('[WebRTC] Local description set');
 
       const callType = isVoiceOnly ? 'audio' : 'video';
+      console.log('[WebRTC] Emitting call-user event to:', targetId);
       socketService.callUser(targetId, offer, callType);
     } catch (error) {
-      console.error('Error starting call:', error);
+      console.error('[WebRTC] Error starting call:', error);
     }
   }
 
@@ -112,26 +192,38 @@ export class WebRTCService {
   }
 
   static async handleAnswer(answer: any): Promise<void> {
+    console.log(
+      '[WebRTC] Handling answer, peerConnection exists:',
+      !!this.peerConnection,
+    );
     try {
       if (this.peerConnection) {
         await this.peerConnection.setRemoteDescription(
           new RTCSessionDescription(answer),
         );
+        console.log('[WebRTC] Remote description (answer) set successfully');
+      } else {
+        console.warn('[WebRTC] No peer connection when handling answer!');
       }
     } catch (error) {
-      console.error('Error handling answer:', error);
+      console.error('[WebRTC] Error handling answer:', error);
     }
   }
 
   static async handleCandidate(candidate: any): Promise<void> {
+    console.log(
+      '[WebRTC] Handling ICE candidate, peerConnection exists:',
+      !!this.peerConnection,
+    );
     try {
       if (this.peerConnection && candidate) {
         await this.peerConnection.addIceCandidate(
           new RTCIceCandidate(candidate),
         );
+        console.log('[WebRTC] ICE candidate added successfully');
       }
     } catch (error) {
-      console.error('Error handling candidate:', error);
+      console.error('[WebRTC] Error handling candidate:', error);
     }
   }
 
