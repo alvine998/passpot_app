@@ -41,6 +41,7 @@ const CallLogScreen = () => {
             const response = await api.get<{ data: CallLogItem[] }>('/calls/history');
             if (response.data?.data) {
                 setCalls(response.data.data);
+                console.log('Call logs:', response.data.data);
             }
         } catch (error) {
             console.error('Error fetching call logs:', error);
@@ -142,7 +143,7 @@ const CallLogScreen = () => {
                             styles.callStatus,
                             item.status === 'missed' && styles.missedCall
                         ]}>
-                            {item.callType === 'video' ? t('callLog.videoCall') : t('callLog.voiceCall')}
+                            {isOutgoing ? t('callLog.outgoing') : t('callLog.incoming')} · {item.callType === 'video' ? t('callLog.videoCall') : t('callLog.voiceCall')}
                             {item.duration ? ` · ${formatDuration(item.duration)}` : ''}
                         </Text>
                     </View>
